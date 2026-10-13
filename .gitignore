@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs and local tooling output
+*.log
+coverage/
+.DS_Store
+
+# Reference material kept outside the source tree
+reference/
