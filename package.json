@@ -2,6 +2,17 @@
   "name": "type-garden",
   "private": true,
   "version": "1.0.0",
+  "description": "A generative typography studio where letters grow into living botanical forms.",
+  "keywords": [
+    "generative-art",
+    "generative-typography",
+    "creative-coding",
+    "botanical-art",
+    "interactive-art",
+    "react",
+    "vite",
+    "canvas"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
