@@ -11,6 +11,7 @@ export const App: FC = () => {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('fullscreen');
   const [preset, setPreset] = useState<string>('Breathe');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const canvasHandleRef = useRef<GardenCanvasHandle | null>(null);
 
@@ -71,6 +72,7 @@ export const App: FC = () => {
         fontFamily={fontFamily}
         aspectRatio={aspectRatio}
         preset={preset}
+        onFocusChange={setIsKeyboardOpen}
       />
 
       <Toolbar
@@ -89,6 +91,10 @@ export const App: FC = () => {
         onExportPng={handleExportPng}
         onExportSvg={handleExportSvg}
         onExportVideo={handleExportVideo}
+        isKeyboardOpen={isKeyboardOpen}
+        onOpenKeyboard={() => canvasHandleRef.current?.focusInput()}
+        onAddSpace={() => canvasHandleRef.current?.addCharacter(' ')}
+        onBackspace={() => canvasHandleRef.current?.deleteCharacter()}
       />
 
       {toastMessage && (

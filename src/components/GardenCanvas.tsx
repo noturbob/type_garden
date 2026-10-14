@@ -29,6 +29,9 @@ export interface GardenCanvasHandle {
   startVideoRecording: (durationMs: number, onComplete: (blob: Blob) => void) => void;
   clearGarden: () => void;
   resetText: (text: string) => void;
+  focusInput: () => void;
+  addCharacter: (ch: string) => void;
+  deleteCharacter: () => void;
 }
 
 interface GardenCanvasProps {
@@ -38,10 +41,11 @@ interface GardenCanvasProps {
   aspectRatio: AspectRatio;
   preset: string;
   onLetterCountChange?: (count: number) => void;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
-  ({ palette, species, fontFamily, aspectRatio, preset, onLetterCountChange }, ref) => {
+  ({ palette, species, fontFamily, aspectRatio, preset, onLetterCountChange, onFocusChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -119,7 +123,7 @@ export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
         });
         if (currentWord) words.push(currentWord);
 
-        const maxW = W * 0.78;
+        const maxW = W < 600 ? W * 0.88 : W * 0.78;
         const S0 = Math.min(H * 0.22, 105);
         const LH = 1.95;
 
@@ -476,6 +480,15 @@ export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
       resetText: (text: string) => {
         populateText(text);
       },
+      focusInput: () => {
+        inputRef.current?.focus({ preventScroll: true });
+      },
+      addCharacter: (ch: string) => {
+        addCharacter(ch);
+      },
+      deleteCharacter: () => {
+        handleBackspace();
+      },
     }));
 
     // Initial load
@@ -487,6 +500,7 @@ export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.target === inputRef.current) return;
 
         if (e.key === 'Backspace') {
           e.preventDefault();
@@ -792,8 +806,9 @@ export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
       const handleResize = () => {
         const dpr = window.devicePixelRatio || 1;
         const containerRect = container.getBoundingClientRect();
-        let targetW = containerRect.width;
-        let targetH = containerRect.height;
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        let targetW = vv ? Math.min(containerRect.width, vv.width) : containerRect.width;
+        let targetH = vv ? Math.min(containerRect.height, vv.height) : containerRect.height;
 
         if (aspectRatio === '1:1') {
           const minDim = Math.min(targetW * 0.88, targetH * 0.88);
@@ -827,6 +842,7 @@ export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
 
       handleResize();
       window.addEventListener('resize', handleResize);
+      window.visualViewport?.addEventListener('resize', handleResize);
 
       const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) return;
@@ -876,6 +892,7 @@ export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
       return () => {
         cancelAnimationFrame(animId);
         window.removeEventListener('resize', handleResize);
+        window.visualViewport?.removeEventListener('resize', handleResize);
       };
     }, [palette, species, aspectRatio, computeLayout, renderGardenFrame]);
 
@@ -893,8 +910,53 @@ export const GardenCanvas = forwardRef<GardenCanvasHandle, GardenCanvasProps>(
           ref={inputRef}
           type="text"
           className="hidden-keyboard-input"
-          autoFocus
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           aria-label="Type your words into the garden"
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
+          onBeforeInput={(e: any) => {
+            if (e.inputType === 'deleteContentBackward') {
+              e.preventDefault();
+              handleBackspace();
+            } else if (e.inputType === 'insertLineBreak') {
+              e.preventDefault();
+              const now = performance.now();
+              lettersRef.current.forEach((l) => {
+                if (!l.dead) l.dead = now;
+              });
+              onLetterCountChange?.(0);
+            } else if (e.data) {
+              e.preventDefault();
+              for (const ch of e.data) {
+                addCharacter(ch);
+              }
+            }
+          }}
+          onInput={(e) => {
+            const val = e.currentTarget.value;
+            if (val) {
+              for (const ch of val) {
+                addCharacter(ch);
+              }
+              e.currentTarget.value = '';
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Backspace') {
+              e.preventDefault();
+              handleBackspace();
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              const now = performance.now();
+              lettersRef.current.forEach((l) => {
+                if (!l.dead) l.dead = now;
+              });
+              onLetterCountChange?.(0);
+            }
+          }}
         />
 
         {isRecording && (
